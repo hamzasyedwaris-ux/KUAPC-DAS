@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Attendance System - KUAPC</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background-color: #ffffff;
+    color: #004aad; /* KUAPC blue */
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  header {
+    width: 100%; padding: 16px; background-color: #004aad; color: #fff; text-align: center;
+    font-size: 1.4em; font-weight: bold;
+  }
+  #volunteerSection, #scannerSection, #messageSection {
+    margin: 20px; width: 90%; max-width: 400px; text-align: center;
+  }
+  input[type="text"] {
+    width: 80%; padding: 8px; font-size: 1em; margin-bottom: 12px;
+  }
+  button {
+    padding: 10px 20px; font-size: 1em; background-color: #004aad; color: #fff;
+    border: none; border-radius: 5px; cursor: pointer;
+  }
+  button:hover { background-color: #00337a; }
+  #messageSection {
+    margin-top: 20px; font-size: 1em; padding: 12px; border-radius: 5px;
+  }
+  .entry { color: green; }
+  .exit { color: blue; }
+  .error { color: red; }
+  .ignored { color: orange; }
+</style>
+</head>
+<body>
+
+<header>Digital Attendance System - KUAPC</header>
+
+<div id="volunteerSection">
+  <h3>Enter Your Name</h3>
+  <input type="text" id="volunteerName" placeholder="Volunteer Name">
+  <br>
+  <button onclick="startScanner()">Start Scanning</button>
+</div>
+
+<div id="scannerSection" style="display:none;">
+  <h3>Scan Participant QR</h3>
+  <video id="preview" width="300" height="300"></video>
+</div>
+
+<div id="messageSection"></div>
+
+<!-- Include html5-qrcode library -->
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+<script>
+let volunteer = "";
+
+function startScanner() {
+  const input = document.getElementById("volunteerName").value.trim();
+  if(!input) { alert("Please enter your name."); return; }
+  volunteer = input;
+  document.getElementById("volunteerSection").style.display = "none";
+  document.getElementById("scannerSection").style.display = "block";
+
+  const html5QrCode = new Html5Qrcode("preview");
+
+  const qrConfig = { fps: 10, qrbox: 250 };
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    qrConfig,
+    qrCodeMessage => {
+      // QR code scanned
+      submitScan(qrCodeMessage);
+    },
+    errorMessage => {
+      // console.log("QR scan error", errorMessage);
+    }
+  ).catch(err => {
+    document.getElementById("messageSection").innerHTML = `<div class="error">Camera error: ${err}</div>`;
+  });
+}
+
+function submitScan(qrCode) {
+  const webAppURL = "https://script.google.com/macros/s/AKfycbzCTcCvWYLCyTTKy8MrEZGjXRFf4ijA52TRY7SXCidbHJ4PyWpxqmbg-yCa2m4vw4HX/exec"; // Replace with your Apps Script URL
+
+  fetch(`${webAppURL}?id=${encodeURIComponent(qrCode)}&volunteer=${encodeURIComponent(volunteer)}`)
+    .then(response => response.text())
+    .then(html => {
+      document.getElementById("messageSection").innerHTML = html;
+    })
+    .catch(err => {
+      document.getElementById("messageSection").innerHTML = `<div class="error">Error sending scan: ${err}</div>`;
+    });
+}
+</script>
+
+</body>
+</html>
