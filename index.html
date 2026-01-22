@@ -1,136 +1,135 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Digital Attendance System - KUAPC</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      background-color: #f5f7fa;
-      color: #333;
+      background: #f4f7fc;
+      color: #0a3d62;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    header {
+      width: 100%;
+      background-color: #0a3d62;
+      color: white;
       text-align: center;
-      padding: 15px;
+      padding: 1rem 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
-    h1 {
-      color: #1a73e8;
-      margin-bottom: 5px;
-    }
-    h2 {
-      margin-top: 0;
-      margin-bottom: 5px;
-      color: #333;
-    }
-    #currentSession {
-      margin-bottom: 15px;
-      font-weight: bold;
-      color: #1a73e8;
+    main {
+      padding: 1rem;
+      max-width: 480px;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     input, button {
-      padding: 12px;
-      font-size: 16px;
-      margin: 5px 0;
-      width: 80%;
-      max-width: 400px;
-      box-sizing: border-box;
+      padding: 0.6rem 1rem;
+      margin: 0.5rem 0;
+      font-size: 1rem;
+      width: 100%;
+      border-radius: 5px;
+      border: 1px solid #0a3d62;
     }
     button {
-      background-color: #1a73e8;
+      background-color: #0a3d62;
       color: white;
-      border: none;
       cursor: pointer;
-      width: 50%;
-      max-width: 200px;
+      font-weight: bold;
     }
     button:disabled {
-      background-color: #888;
-      cursor: default;
+      background-color: #4a6fa5;
+      cursor: not-allowed;
     }
     #scanner {
-      margin-top: 20px;
+      margin-top: 1rem;
       position: relative;
-    }
-    #scanner video {
       width: 100%;
-      border-radius: 8px;
+      height: 300px;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
     }
-    #scanner .overlay {
+    .overlay {
       position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      border: 4px dashed rgba(26, 115, 232, 0.7);
-      border-radius: 8px;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: 4px dashed rgba(255,255,255,0.7);
+      box-sizing: border-box;
       pointer-events: none;
     }
-    #output {
-      margin-top: 20px;
-      max-width: 420px;
-      margin-left: auto;
-      margin-right: auto;
-      text-align: left;
-      padding: 12px;
-      background-color: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    #log {
+      margin-top: 1rem;
+      width: 100%;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #0a3d62;
+      border-radius: 5px;
+      padding: 0.5rem;
+      background: white;
+    }
+    #log p {
+      margin: 0.2rem 0;
     }
   </style>
 </head>
 <body>
-  <h1>Digital Attendance System</h1>
-  <h2>KUAPC</h2>
-  <div id="currentSession">Active Session: <span id="sessionName">Loading...</span></div>
-
-  <div>
-    <input type="text" id="volunteerName" placeholder="Enter Volunteer Name" />
-    <br>
+  <header>
+    <h1>Digital Attendance System - KUAPC</h1>
+  </header>
+  <main>
+    <input type="text" id="volunteerName" placeholder="Enter your name" />
     <button id="startBtn">Start Scanning</button>
-  </div>
+    <div id="scanner"></div>
+    <div id="log"></div>
+  </main>
 
-  <div id="scanner"></div>
-  <div id="output" style="display:none;"></div>
-
-  <!-- ZXing Library -->
-  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <!-- ZXing library -->
+  <script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
   <script>
-    let selectedVolunteer = "";
     const startBtn = document.getElementById("startBtn");
     const volunteerInput = document.getElementById("volunteerName");
-    const output = document.getElementById("output");
     const scannerDiv = document.getElementById("scanner");
-    const sessionNameSpan = document.getElementById("sessionName");
+    const logDiv = document.getElementById("log");
+
     let codeReader;
+    let selectedVolunteer = "";
 
-    const BACKEND_URL = "https://script.google.com/macros/s/AKfycbzCTcCvWYLCyTTKy8MrEZGjXRFf4ijA52TRY7SXCidbHJ4PyWpxqmbg-yCa2m4vw4HX/exec";
-    const SESSIONS_SHEET_URL = BACKEND_URL + "?getSession=1"; // Custom param to fetch active session
-
-    // Fetch current active session from backend
-    async function fetchActiveSession() {
-      try {
-        const resp = await fetch(SESSIONS_SHEET_URL);
-        const data = await resp.json(); // Expecting { sessionName: "Session 1" }
-        sessionNameSpan.textContent = data.sessionName || "No Active Session";
-      } catch (e) {
-        sessionNameSpan.textContent = "Error fetching session";
-        console.error(e);
-      }
+    function logMessage(msg) {
+      const p = document.createElement("p");
+      p.textContent = msg;
+      logDiv.prepend(p);
     }
 
-    // Auto-refresh session every 15 sec
-    fetchActiveSession();
-    setInterval(fetchActiveSession, 15000);
+    async function handleScan(resultText) {
+      // Stop scanning temporarily
+      codeReader.reset();
 
-    startBtn.addEventListener("click", async () => {
-      const name = volunteerInput.value.trim();
-      if (!name) {
-        alert("Please enter your name before scanning.");
-        return;
+      logMessage("QR scanned: " + resultText);
+
+      // Send to Apps Script backend
+      const url = `https://script.google.com/macros/s/YOUR_WEB_APP_DEPLOYMENT_ID/exec?id=${encodeURIComponent(resultText)}&volunteer=${encodeURIComponent(selectedVolunteer)}`;
+      try {
+        const resp = await fetch(url);
+        const text = await resp.text();
+        logMessage(text);
+      } catch (e) {
+        logMessage("Error sending scan: " + e);
       }
-      selectedVolunteer = name;
-      volunteerInput.disabled = true;
-      startBtn.disabled = true;
 
+      // Restart scanning
+      startScanning();
+    }
+
+    async function startScanning() {
       scannerDiv.innerHTML = "";
       const video = document.createElement("video");
       scannerDiv.appendChild(video);
@@ -147,8 +146,17 @@
           return;
         }
 
+        // --- PICK BACK CAMERA ---
+        let backCamera = devices[devices.length - 1].deviceId; // default to last
+        for (let d of devices) {
+          if (d.label.toLowerCase().includes("back") || d.label.toLowerCase().includes("rear")) {
+            backCamera = d.deviceId;
+            break;
+          }
+        }
+
         await codeReader.decodeFromVideoDevice(
-          devices[0].deviceId,
+          backCamera,
           video,
           (result, err) => {
             if (result) handleScan(result.text);
@@ -158,46 +166,20 @@
         console.error(e);
         alert("Error initializing camera. Check permissions.");
       }
-    });
+    }
 
-    async function handleScan(qrText) {
-      try {
-        codeReader.reset();
-        const url = new URL(BACKEND_URL);
-        url.searchParams.append("id", qrText);
-        url.searchParams.append("volunteer", selectedVolunteer);
-
-        const resp = await fetch(url);
-        const htmlText = await resp.text();
-
-        output.innerHTML = htmlText;
-        output.style.display = "block";
-
-        setTimeout(() => {
-          output.innerHTML = "";
-          output.style.display = "none";
-          startScanningAgain();
-        }, 3000);
-
-      } catch (e) {
-        output.innerHTML = `<p style="color:red;">Error connecting to backend.</p>`;
-        output.style.display = "block";
-        console.error(e);
+    startBtn.addEventListener("click", async () => {
+      const name = volunteerInput.value.trim();
+      if (!name) {
+        alert("Please enter your name before scanning.");
+        return;
       }
-    }
+      selectedVolunteer = name;
+      volunteerInput.disabled = true;
+      startBtn.disabled = true;
 
-    function startScanningAgain() {
-      scannerDiv.innerHTML = "";
-      const video = document.createElement("video");
-      scannerDiv.appendChild(video);
-      const overlay = document.createElement("div");
-      overlay.className = "overlay";
-      scannerDiv.appendChild(overlay);
-
-      codeReader.decodeFromVideoDevice(null, video, (result, err) => {
-        if (result) handleScan(result.text);
-      });
-    }
+      startScanning();
+    });
   </script>
 </body>
 </html>
